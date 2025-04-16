@@ -1,0 +1,302 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Game Vui</title>
+  <style>
+    :root {
+      --tile-size: 80px;
+      --tile-gap: 10px;
+      --light-bg: #faf8ef;
+      --dark-bg: #1e1e1e;
+      --tile-bg: #ccc0b3;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background-color: var(--light-bg);
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      transition: background-color 0.3s ease;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: var(--dark-bg);
+        color: #eee;
+      }
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin: 20px 0 5px;
+    }
+
+    #score {
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+    }
+
+    #game-board {
+      display: grid;
+      background-color: var(--tile-bg);
+      border-radius: 10px;
+      padding: var(--tile-gap);
+      touch-action: none;
+      box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    }
+
+    .tile {
+      width: var(--tile-size);
+      height: var(--tile-size);
+      background-color: #eee4da;
+      font-size: 1.5rem;
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 5px;
+      transition: transform 0.2s, background-color 0.3s;
+      animation: pop 0.3s ease;
+      position: relative;
+    }
+
+    @keyframes pop {
+      from { transform: scale(0.8); opacity: 0.5; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .tile.move {
+      animation: moveTile 0.2s ease;
+    }
+
+    .tile.explode {
+      animation: explode 0.3s ease-out;
+    }
+
+    @keyframes moveTile {
+      0% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes explode {
+      0% { transform: scale(1.2) rotate(2deg); }
+      50% { transform: scale(0.95) rotate(-2deg); }
+      100% { transform: scale(1) rotate(0); }
+    }
+
+    #game-over {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-size: 1.5rem;
+      z-index: 999;
+    }
+
+    .popup {
+      background-color: #333;
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+    }
+
+    .popup button {
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>Game Vui</h1>
+  <div id="score">Điểm: 0</div>
+  <div id="game-board"></div>
+
+  <div id="game-over">
+    <div class="popup">
+      <p>Bạn đã thua!</p>
+      <button onclick="startGame()">Chơi lại</button>
+      <button onclick="alert('Xem quảng cáo...')">Xem quảng cáo để tiếp tục</button>
+    </div>
+  </div>
+
+  <audio id="move-sound" src="https://cdn.pixabay.com/download/audio/2023/03/09/audio_25fbdadadd.mp3?filename=click-pop-2-194276.mp3" preload="auto"></audio>
+  <audio id="merge-sound" src="https://cdn.pixabay.com/download/audio/2023/01/20/audio_957d6f5063.mp3?filename=success-fanfare-trumpets-6185.mp3" preload="auto"></audio>
+
+  <script>
+    let board = [];
+    let size = 4;
+    let score = 0;
+    const boardEl = document.getElementById("game-board");
+    const moveSound = document.getElementById("move-sound");
+    const mergeSound = document.getElementById("merge-sound");
+
+    function updateScore(points = 0) {
+      score += points;
+      document.getElementById("score").textContent = "Điểm: " + score;
+    }
+
+    function createBoard() {
+      boardEl.innerHTML = "";
+      boardEl.style.gridTemplateColumns = `repeat(${size}, var(--tile-size))`;
+      boardEl.style.gridTemplateRows = `repeat(${size}, var(--tile-size))`;
+      board = Array.from({ length: size }, () => Array(size).fill(0));
+      score = 0;
+      updateScore(0);
+      addTile();
+      addTile();
+      render();
+    }
+
+    function addTile() {
+      const empty = [];
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          if (board[r][c] === 0) empty.push([r, c]);
+        }
+      }
+      if (empty.length === 0) return;
+      const [r, c] = empty[Math.floor(Math.random() * empty.length)];
+      board[r][c] = Math.random() > 0.1 ? 2 : 4;
+    }
+
+    function render() {
+      boardEl.innerHTML = "";
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          const tile = document.createElement("div");
+          tile.className = "tile";
+          if (board[r][c] !== 0) {
+            tile.textContent = board[r][c];
+            tile.classList.add("move");
+            tile.style.backgroundColor = `hsl(${Math.min(360, board[r][c] * 2)}, 80%, 70%)`;
+          } else {
+            tile.style.opacity = 0.3;
+          }
+          boardEl.appendChild(tile);
+        }
+      }
+    }
+
+    function rotateLeft(matrix) {
+      return matrix[0].map((_, i) => matrix.map(row => row[i])).reverse();
+    }
+
+    function rotateRight(matrix) {
+      return matrix[0].map((_, i) => matrix.map(row => row[size - 1 - i]));
+    }
+
+    function moveLeft(row) {
+      let moved = false;
+      let merged = false;
+      let points = 0;
+      let arr = row.filter(x => x);
+      for (let i = 0; i < arr.length - 1; i++) {
+        if (arr[i] === arr[i + 1]) {
+          arr[i] *= 2;
+          points += arr[i];
+          arr[i + 1] = 0;
+          merged = true;
+        }
+      }
+      const newRow = arr.filter(x => x).concat(Array(size - arr.filter(x => x).length).fill(0));
+      if (newRow.toString() !== row.toString()) moved = true;
+      return { row: newRow, moved, merged, points };
+    }
+
+    function handleMove(dir) {
+      let moved = false;
+      let merged = false;
+      let totalPoints = 0;
+      let newBoard = board.map(row => [...row]);
+
+      for (let i = 0; i < dir; i++) newBoard = rotateLeft(newBoard);
+
+      for (let r = 0; r < size; r++) {
+        const result = moveLeft(newBoard[r]);
+        newBoard[r] = result.row;
+        if (result.moved) moved = true;
+        if (result.merged) merged = true;
+        totalPoints += result.points;
+      }
+
+      for (let i = 0; i < (4 - dir) % 4; i++) newBoard = rotateRight(newBoard);
+
+      if (moved) {
+        board = newBoard;
+        addTile();
+        render();
+        updateScore(totalPoints);
+        if (merged) {
+          mergeSound.play();
+          document.querySelectorAll('.tile.move').forEach(tile => tile.classList.add('explode'));
+          navigator.vibrate?.(100);
+        } else {
+          moveSound.play();
+        }
+        if (isGameOver()) {
+          document.getElementById("game-over").style.display = "flex";
+        }
+      }
+    }
+
+    function isGameOver() {
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          if (board[r][c] === 0) return false;
+          if (c < size - 1 && board[r][c] === board[r][c + 1]) return false;
+          if (r < size - 1 && board[r][c] === board[r + 1][c]) return false;
+        }
+      }
+      return true;
+    }
+
+    function startGame() {
+      document.getElementById("game-over").style.display = "none";
+      createBoard();
+    }
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "ArrowLeft") handleMove(0);
+      if (e.key === "ArrowUp") handleMove(1);
+      if (e.key === "ArrowRight") handleMove(2);
+      if (e.key === "ArrowDown") handleMove(3);
+    });
+
+    let startX, startY;
+    document.addEventListener("touchstart", e => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }, { passive: false });
+
+    document.addEventListener("touchmove", e => e.preventDefault(), { passive: false });
+
+    document.addEventListener("touchend", e => {
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 30) handleMove(2);
+        else if (dx < -30) handleMove(0);
+      } else {
+        if (dy > 30) handleMove(3);
+        else if (dy < -30) handleMove(1);
+      }
+    });
+
+    startGame();
+  </script>
+</body>
+</html>
